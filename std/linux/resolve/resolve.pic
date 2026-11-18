@@ -1,0 +1,321 @@
+// Package lresolve - Linux x8664 module/symbol resolve via linkMap + dynsym.
+// Used by std/runtime; import path: "std/linux/resolve"
+package lresolve
+
+type PVOID = *void
+
+const ELFMAG = 0x464C457F
+const ELFCLASS64 = 2
+const ELFDATA2LSB = 1
+const ET_EXEC = 2
+const ET_DYN = 3
+const PT_LOAD = 1
+const PT_DYNAMIC = 2
+const DT_NULL = 0
+const DT_HASH = 4
+const DT_STRTAB = 5
+const DT_SYMTAB = 6
+const DT_DEBUG = 21
+const STB_GLOBAL = 1
+const STB_WEAK = 2
+const STT_NOTYPE = 0
+const STT_OBJECT = 1
+const STT_FUNC = 2
+const SHN_UNDEF = 0
+const SIZE_PHDR = 56
+const SIZE_DYN = 16
+const SIZE_SYM = 24
+
+fn pathBasename(path: *u8) -> *u8 {
+    var base: *u8 = path
+    if path == null {
+        return path
+    }
+    var p: *u8 = path
+    while *p != 0 {
+        if *p == 0x2F {
+            base = p + 1
+        }
+        p = p + 1
+    }
+    return base
+}
+
+fn elfValid(base: PVOID) -> u64 {
+    if base == null {
+        return 0
+    }
+    if __load32(base) != ELFMAG {
+        return 0
+    }
+    if __load8(cast[*void](cast[u64](base) + 4)) != ELFCLASS64 {
+        return 0
+    }
+    if __load8(cast[*void](cast[u64](base) + 5)) != ELFDATA2LSB {
+        return 0
+    }
+    var etype: u16 = __load16(cast[*void](cast[u64](base) + 16))
+    if etype != ET_EXEC {
+        if etype != ET_DYN {
+            return 0
+        }
+    }
+    return 1
+}
+
+fn findElfHeader(hint: PVOID, maxPages: u64) -> PVOID {
+    var addr: u64 = cast[u64](hint) & 0xFFFFFFFFFFFFF000
+    var i: u64 = 0
+    while i < maxPages {
+        if elfValid(cast[PVOID](addr)) != 0 {
+            return cast[PVOID](addr)
+        }
+        if addr < 0x1000 {
+            return null
+        }
+        addr = addr - 0x1000
+        i = i + 1
+    }
+    return null
+}
+
+fn elfLoadBias(base: PVOID) -> u64 {
+    var phoff: u64 = __load64(cast[*void](cast[u64](base) + 32))
+    var phnum: u16 = __load16(cast[*void](cast[u64](base) + 56))
+    var ph: u64 = cast[u64](base) + phoff
+    var i: u16 = 0
+    while i < phnum {
+        if __load32(cast[*void](ph)) == PT_LOAD {
+            return cast[u64](base) - __load64(cast[*void](ph + 16))
+        }
+        ph = ph + SIZE_PHDR
+        i = i + 1
+    }
+    return cast[u64](base)
+}
+
+fn elfDynamic(base: PVOID) -> PVOID {
+    var phoff: u64 = __load64(cast[*void](cast[u64](base) + 32))
+    var phnum: u16 = __load16(cast[*void](cast[u64](base) + 56))
+    var bias: u64 = elfLoadBias(base)
+    var ph: u64 = cast[u64](base) + phoff
+    var i: u16 = 0
+    while i < phnum {
+        if __load32(cast[*void](ph)) == PT_DYNAMIC {
+            return cast[PVOID](bias + __load64(cast[*void](ph + 16)))
+        }
+        ph = ph + SIZE_PHDR
+        i = i + 1
+    }
+    return null
+}
+
+fn elfRDebug(base: PVOID) -> PVOID {
+    var dyn: PVOID = elfDynamic(base)
+    if dyn == null {
+        return null
+    }
+    var d: u64 = cast[u64](dyn)
+    while 1 {
+        var tag: i64 = cast[i64](__load64(cast[*void](d)))
+        if tag == DT_NULL {
+            return null
+        }
+        if tag == DT_DEBUG {
+            var ptr: u64 = __load64(cast[*void](d + 8))
+            if ptr == 0 {
+                return null
+            }
+            if __load64(cast[*void](ptr + 8)) == 0 {
+                return null
+            }
+            return cast[PVOID](ptr)
+        }
+        d = d + SIZE_DYN
+    }
+    return null
+}
+
+// FindRDebug discovers rDebug from a stack frame hint ([hint+8] = caller retaddr).
+fn FindRDebug(stackHint: PVOID) -> PVOID {
+    if stackHint != null {
+        var retaddr: PVOID = cast[PVOID](__load64(cast[*void](cast[u64](stackHint) + 8)))
+        var elf: PVOID = findElfHeader(retaddr, 0x10000)
+        if elf != null {
+            var dbg: PVOID = elfRDebug(elf)
+            if dbg != null {
+                return dbg
+            }
+        }
+        var sp: *u64 = cast[*u64](stackHint)
+        var i: u64 = 0
+        while i < 0x400 {
+            if sp[i] == 3 {
+                if sp[i + 1] > 0x1000 {
+                    var base: PVOID = findElfHeader(cast[PVOID](sp[i + 1]), 0x100)
+                    if base != null {
+                        var dbg2: PVOID = elfRDebug(base)
+                        if dbg2 != null {
+                            return dbg2
+                        }
+                    }
+                }
+            }
+            i = i + 1
+        }
+    }
+    return null
+}
+
+fn linkMapBase(lm: PVOID) -> PVOID {
+    if lm == null {
+        return null
+    }
+    var lLd: PVOID = cast[PVOID](__load64(cast[*void](cast[u64](lm) + 16)))
+    if lLd != null {
+        var elf: PVOID = findElfHeader(lLd, 0x1000)
+        if elf != null {
+            return elf
+        }
+    }
+    var lAddr: u64 = __load64(lm)
+    if lAddr != 0 {
+        if elfValid(cast[PVOID](lAddr)) != 0 {
+            return cast[PVOID](lAddr)
+        }
+    }
+    return cast[PVOID](lAddr)
+}
+
+// Module finds a loaded ELF by djb2 hash of basename or full path.
+fn Module(nameHash: u32, stackHint: PVOID) -> PVOID {
+    var dbg: PVOID = FindRDebug(stackHint)
+    if dbg == null {
+        return null
+    }
+    var lm: PVOID = cast[PVOID](__load64(cast[*void](cast[u64](dbg) + 8)))
+    while lm != null {
+        var lName: *u8 = cast[*u8](__load64(cast[*void](cast[u64](lm) + 8)))
+        if lName != null {
+            if *lName != 0 {
+                var baseName: *u8 = pathBasename(lName)
+                if __hash(baseName) == nameHash {
+                    return linkMapBase(lm)
+                }
+                if __hash(lName) == nameHash {
+                    return linkMapBase(lm)
+                }
+            }
+        }
+        lm = cast[PVOID](__load64(cast[*void](cast[u64](lm) + 24)))
+    }
+    return null
+}
+
+// Symbol resolves an export by djb2 hash of the symbol name.
+fn Symbol(moduleBase: PVOID, funcHash: u32) -> PVOID {
+    if moduleBase == null {
+        return null
+    }
+    if elfValid(moduleBase) == 0 {
+        return null
+    }
+    var bias: u64 = elfLoadBias(moduleBase)
+    var dyn: PVOID = elfDynamic(moduleBase)
+    if dyn == null {
+        return null
+    }
+    var symtab: u64 = 0
+    var strtab: u64 = 0
+    var nchain: u32 = 0
+    var d: u64 = cast[u64](dyn)
+    while 1 {
+        var tag: i64 = cast[i64](__load64(cast[*void](d)))
+        if tag == DT_NULL {
+            break
+        }
+        var ptr: u64 = __load64(cast[*void](d + 8))
+        if tag == DT_SYMTAB {
+            symtab = ptr
+            if symtab < 0x10000 {
+                symtab = bias + ptr
+            }
+        }
+        if tag == DT_STRTAB {
+            strtab = ptr
+            if strtab < 0x10000 {
+                strtab = bias + ptr
+            }
+        }
+        if tag == DT_HASH {
+            var h: u64 = ptr
+            if h < 0x10000 {
+                h = bias + ptr
+            }
+            nchain = __load32(cast[*void](h + 4))
+        }
+        d = d + SIZE_DYN
+    }
+    if symtab == 0 {
+        return null
+    }
+    if strtab == 0 {
+        return null
+    }
+    var maxSym: u32 = nchain
+    if maxSym == 0 {
+        maxSym = 0x8000
+    }
+    var i: u32 = 0
+    while i < maxSym {
+        var sym: u64 = symtab + cast[u64](i) * SIZE_SYM
+        var stName: u32 = __load32(cast[*void](sym))
+        if stName != 0 {
+            var s: *u8 = cast[*u8](strtab + cast[u64](stName))
+            if s != null {
+                if *s != 0 {
+                    if __hash(s) == funcHash {
+                        var stInfo: u8 = __load8(cast[*void](sym + 4))
+                        var bind: u8 = cast[u8](stInfo >> 4)
+                        var typ: u8 = cast[u8](stInfo & 0xF)
+                        var ok: u64 = 0
+                        if bind == STB_GLOBAL {
+                            ok = 1
+                        }
+                        if bind == STB_WEAK {
+                            ok = 1
+                        }
+                        if ok != 0 {
+                            var okT: u64 = 0
+                            if typ == STT_FUNC {
+                                okT = 1
+                            }
+                            if typ == STT_NOTYPE {
+                                okT = 1
+                            }
+                            if typ == STT_OBJECT {
+                                okT = 1
+                            }
+                            if okT != 0 {
+                                var stShndx: u16 = __load16(cast[*void](sym + 6))
+                                var stValue: u64 = __load64(cast[*void](sym + 8))
+                                if stShndx != SHN_UNDEF {
+                                    if stValue != 0 {
+                                        return cast[PVOID](bias + stValue)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        i = i + 1
+    }
+    return null
+}
+
+// Probe returns true if Linux dynamic linker state is reachable from stackHint.
+fn Probe(stackHint: PVOID) -> bool {
+    return FindRDebug(stackHint) != null
+}
