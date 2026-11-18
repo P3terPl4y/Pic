@@ -71,7 +71,7 @@ func runCheck(args []string) {
 		fatal("read", err)
 	}
 
-	var diags []diag
+	diags:=[]diag{}
 
 	// Errores de sintaxis vía parser.
 	parseErrs := parseFile(string(src))
@@ -141,20 +141,35 @@ func semaCheck(path string) []diag {
 	return nil
 }
 
-func toDiag(file, raw string) []diag {
-	m := errRe.FindStringSubmatch(raw)
-	if m == nil {
-		return []diag{{File: file, Line: 1, Col: 1, Severity: "error", Message: raw}}
-	}
-	line, _ := strconv.Atoi(m[2])
-	col, _ := strconv.Atoi(m[3])
-	f := m[1]
-	if !filepath.IsAbs(f) {
-		f = file
-	}
-	return []diag{{File: f, Line: line, Col: col, Severity: "error", Message: m[4]}}
-}
+var (
+	// "archivo.pic:5:8: msg"
+	errReWithFile = regexp.MustCompile(`^(.+?):(\d+):(\d+):\s*(.+)$`)
+	// "5:8: msg" (formato que emite el parser de Piclang)
+	errReNoFile = regexp.MustCompile(`^(\d+):(\d+):\s*(.+)$`)
+)
 
+func toDiag(file, raw string) []diag {
+	// 1) Con archivo: "file.pic:5:8: msg"
+	if m := errReWithFile.FindStringSubmatch(raw); m != nil {
+		line, _ := strconv.Atoi(m[2])
+		col, _ := strconv.Atoi(m[3])
+		f := m[1]
+		if !filepath.IsAbs(f) {
+			f = file
+		}
+		return []diag{{File: f, Line: line, Col: col, Severity: "error", Message: m[4]}}
+	}
+
+	// 2) Sin archivo: "5:8: msg" (parser de Piclang)
+	if m := errReNoFile.FindStringSubmatch(raw); m != nil {
+		line, _ := strconv.Atoi(m[1])
+		col, _ := strconv.Atoi(m[2])
+		return []diag{{File: file, Line: line, Col: col, Severity: "error", Message: m[3]}}
+	}
+
+	// 3) Sin posición: fallback a (1,1)
+	return []diag{{File: file, Line: 1, Col: 1, Severity: "error", Message: raw}}
+}
 func fatal(stage string, err error) {
 	fmt.Fprintf(os.Stderr, "picf: %s: %v\n", stage, err)
 	os.Exit(1)

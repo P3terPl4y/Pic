@@ -1,0 +1,41 @@
+{
+  "std/runtime": {
+    "type": "package",
+    "functions": [
+      { "name": "Init", "signature": "fn Init(stackHint: PVOID) -> bool", "doc": "Detecta el SO y prepara malloc/RtlAllocateHeap. Pasa el puntero al frame de pila de main." },
+      { "name": "IsLinux", "signature": "fn IsLinux() -> bool", "doc": "True tras Init si se detectó Linux." },
+      { "name": "IsWindows", "signature": "fn IsWindows() -> bool", "doc": "True tras Init si se detectó Windows." },
+      { "name": "Ready", "signature": "fn Ready() -> bool", "doc": "Init completado y SO conocido." },
+      { "name": "StackHint", "signature": "fn StackHint() -> PVOID", "doc": "Puntero pasado a Init (descubrimiento de link_map en Linux)." },
+      { "name": "Alloc", "signature": "fn Alloc(n: u64) -> (PVOID, *u8)", "doc": "Reserva n bytes en el heap. (n==0 se trata como 1)." },
+      { "name": "Free", "signature": "fn Free(p: PVOID)", "doc": "Libera un bloque de Alloc. null se ignora." }
+    ]
+  },
+  "std/mem": {
+    "type": "package",
+    "functions": [
+      { "name": "Copy", "signature": "fn Copy(dst: *void, src: *void, n: u64) -> *void", "doc": "memcpy; devuelve dst." },
+      { "name": "Set", "signature": "fn Set(dst: *void, val: u64, n: u64) -> *void", "doc": "memset; devuelve dst." },
+      { "name": "Equal", "signature": "fn Equal(a: *void, b: *void, n: u64) -> bool", "doc": "Compara n bytes." }
+    ]
+  },
+  "std/strings": {
+    "type": "package",
+    "functions": [
+      { "name": "Len", "signature": "fn Len(s: *u8) -> u64", "doc": "Longitud sin NUL." },
+      { "name": "Compare", "signature": "fn Compare(a: *u8, b: *u8) -> bool", "doc": "Igualdad de bytes." },
+      { "name": "Contains", "signature": "fn Contains(s: *u8, sub: *u8) -> bool", "doc": "True si s contiene sub." },
+      { "name": "Append", "signature": "fn Append(a: *u8, b: *u8) -> (*u8, *u8)", "doc": "Nuevo string en heap a+b." },
+      { "name": "ReplaceAll", "signature": "fn ReplaceAll(s: *u8, old: *u8, newS: *u8) -> (*u8, *u8)", "doc": "Reemplaza todas las ocurrencias." }
+    ]
+  },
+  "std/file": {
+    "type": "package",
+    "functions": [
+      { "name": "Open", "signature": "fn Open(path: *u8, mode: u64) -> (Handle, *u8)", "doc": "Abre un archivo." },
+      { "name": "Read", "signature": "fn Read(h: Handle, buf: *u8, n: u64) -> (u64, *u8)", "doc": "Lee hasta n bytes." },
+      { "name": "Write", "signature": "fn Write(h: Handle, buf: *u8, n: u64) -> (u64, *u8)", "doc": "Escribe n bytes." },
+      { "name": "ReadAll", "signature": "fn ReadAll(path: *u8) -> ([]u8, *u8)", "doc": "Lee todo el archivo; libera el slice." }
+    ]
+  }
+}

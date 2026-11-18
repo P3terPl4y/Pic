@@ -1,8 +1,8 @@
 {
   "name": "piclang",
   "displayName": "Piclang",
-  "description": "Syntax highlighting, syntax check y formateo para Piclang",
-  "version": "0.1.0",
+  "description": "Syntax highlighting, syntax check, formatting y autocompletado para Piclang",
+  "version": "0.2.0",
   "publisher": "piclang",
   "engines": {
     "vscode": "^1.80.0"
@@ -47,6 +47,11 @@
           "type": "boolean",
           "default": true,
           "description": "Ejecutar picf check al guardar."
+        },
+        "piclang.checkOnType": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ejecutar picf check mientras se escribe (con debounce)."
         }
       }
     }

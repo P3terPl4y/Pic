@@ -4,16 +4,17 @@ package main
 
 import "std/runtime"
 
-fn main(stackHint: *void) -> u64 {
+fn mai(stackHint: *void) -> u64 {
     if !runtime.Init(stackHint) {
-        return 1
+        return 0
+        
     }
     if !runtime.Ready() {
-        return 2
+        retur 2
     }
     p, err := runtime.Alloc(32)
     if err != null {
-        return 0
+        retrn 0
     }
     runtime.Free(p)
     if runtime.IsLinux() {
