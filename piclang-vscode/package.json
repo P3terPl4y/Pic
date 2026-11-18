@@ -1,0 +1,63 @@
+{
+  "name": "piclang",
+  "displayName": "Piclang",
+  "description": "Syntax highlighting, syntax check y formateo para Piclang",
+  "version": "0.1.0",
+  "publisher": "piclang",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:piclang"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "piclang",
+        "aliases": ["Piclang", "piclang"],
+        "extensions": [".pic"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "piclang",
+        "scopeName": "source.piclang",
+        "path": "./syntaxes/piclang.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      { "command": "piclang.check",  "title": "Piclang: Check current file" },
+      { "command": "piclang.format", "title": "Piclang: Format current file" }
+    ],
+    "configuration": {
+      "title": "Piclang",
+      "properties": {
+        "piclang.picfPath": {
+          "type": "string",
+          "default": "picf",
+          "description": "Ruta al ejecutable picf (absoluta o en PATH)."
+        },
+        "piclang.checkOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ejecutar picf check al guardar."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.4.0"
+  }
+}

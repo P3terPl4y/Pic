@@ -1,0 +1,128 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Piclang",
+  "scopeName": "source.piclang",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#package-import" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#constants" },
+    { "include": "#types" },
+    { "include": "#builtins" },
+    { "include": "#function-def" },
+    { "include": "#function-call" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.piclang", "match": "//.*$" }
+      ]
+    },
+    "package-import": {
+      "patterns": [
+        {
+          "name": "meta.package.piclang",
+          "match": "\\b(package)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.package.piclang" },
+            "2": { "name": "entity.name.namespace.piclang" }
+          }
+        },
+        {
+          "name": "meta.import.piclang",
+          "match": "\\b(import)\\s+(\"([^\"]*)\")",
+          "captures": {
+            "1": { "name": "keyword.other.import.piclang" },
+            "2": { "name": "string.quoted.double.import.piclang" },
+            "3": { "name": "support.namespace.piclang" }
+          }
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.piclang",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.piclang",
+              "match": "\\\\[ntr\"\\\\0]|\\\\x[0-9a-fA-F]{2}"
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.hex.piclang",    "match": "\\b0[xX][0-9a-fA-F]+\\b" },
+        { "name": "constant.numeric.binary.piclang", "match": "\\b0[bB][01]+\\b" },
+        { "name": "constant.numeric.octal.piclang",  "match": "\\b0[oO][0-7]+\\b" },
+        { "name": "constant.numeric.decimal.piclang","match": "\\b[0-9]+(\\.[0-9]+)?\\b" }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        { "name": "keyword.control.piclang", "match": "\\b(if|else|while|for|break|continue|return|defer)\\b" },
+        { "name": "keyword.other.fn.piclang",   "match": "\\bfn\\b" },
+        { "name": "keyword.other.var.piclang",  "match": "\\bvar\\b" },
+        { "name": "keyword.other.type.piclang", "match": "\\b(type|struct)\\b" }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        { "name": "constant.language.piclang", "match": "\\b(true|false|null)\\b" }
+      ]
+    },
+    "types": {
+      "patterns": [
+        { "name": "storage.type.integer.piclang", "match": "\\b(u8|u16|u32|u64|i8|i16|i32|i64|int|uint|byte)\\b" },
+        { "name": "storage.type.basic.piclang",   "match": "\\b(bool|void|string|ptr)\\b" },
+        { "name": "support.type.windows.piclang", "match": "\\b(PVOID|LPVOID|HANDLE|SOCKET|DWORD|HMODULE)\\b" }
+      ]
+    },
+    "builtins": {
+      "name": "support.function.builtin.piclang",
+      "match": "\\b(len|cap|make|append|copy|free|sizeof|__strlen|__syscall)\\b"
+    },
+    "function-def": {
+      "name": "meta.function.piclang",
+      "match": "\\bfn\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "entity.name.function.piclang" }
+      }
+    },
+    "function-call": {
+      "name": "meta.function-call.piclang",
+      "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+      "captures": {
+        "1": { "name": "entity.name.function.call.piclang" }
+      }
+    },
+    "operators": {
+      "patterns": [
+        { "name": "keyword.operator.arrow.piclang",      "match": "->" },
+        { "name": "keyword.operator.assignment.piclang", "match": ":=|=" },
+        { "name": "keyword.operator.comparison.piclang", "match": "==|!=|<=|>=|<|>" },
+        { "name": "keyword.operator.logical.piclang",    "match": "&&|\\|\\||!" },
+        { "name": "keyword.operator.bitwise.piclang",    "match": "&|\\||\\^|<<|>>|~" },
+        { "name": "keyword.operator.arithmetic.piclang", "match": "\\+|-|\\*|/|%" }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.separator.piclang",         "match": "," },
+        { "name": "punctuation.terminator.piclang",        "match": ";" },
+        { "name": "punctuation.accessor.piclang",          "match": "\\." },
+        { "name": "punctuation.section.parens.piclang",    "match": "[()]" },
+        { "name": "punctuation.section.brackets.piclang",  "match": "[\\[\\]]" },
+        { "name": "punctuation.section.braces.piclang",    "match": "[{}]" }
+      ]
+    }
+  }
+}
