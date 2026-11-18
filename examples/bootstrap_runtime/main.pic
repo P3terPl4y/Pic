@@ -3,8 +3,8 @@
 package main
 
 import "std/runtime"
-
 fn mai(stackHint: *void) -> u64 {
+    
     if !runtime.Init(stackHint) {
         return 0
         
